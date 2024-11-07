@@ -1,0 +1,13 @@
+networks:
+  default:
+    name: ${TRAEFIK_NETWORK:-traefik}
+    external: true
+
+services:
+  excalidraw:
+    image: excalidraw/excalidraw
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.excalidraw.service=excalidraw
+      - traefik.http.services.excalidraw.loadbalancer.server.port=80
