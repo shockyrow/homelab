@@ -19,6 +19,8 @@ services:
     ports:
       - 53:53/tcp
       - 53:53/udp
+    profiles:
+      - adguard
     labels:
       - traefik.enable=true
       - traefik.http.routers.adguard.service=adguard
