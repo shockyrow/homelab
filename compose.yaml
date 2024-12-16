@@ -1,6 +1,6 @@
 networks:
   default:
-    name: ${TRAEFIK_NETWORK:-traefik}
+    name: ${NETWORK:-traefik}
 
 volumes:
   adguard_data:
@@ -19,11 +19,8 @@ services:
     ports:
       - 53:53/tcp
       - 53:53/udp
-    profiles:
-      - adguard
     labels:
       - traefik.enable=true
-      - traefik.http.routers.adguard.rule=Host(`adguard.${PUBLIC_DOMAIN:-local}`)
       - traefik.http.routers.adguard.service=adguard
       - traefik.http.services.adguard.loadbalancer.server.port=80
 
@@ -37,9 +34,9 @@ services:
       --entrypoints.https.address=:443
       --providers.docker=true
       --providers.docker.exposedbydefault=false
-      --providers.docker.defaultrule='Host(`{{ index .Labels "com.docker.compose.service" }}.{{ env "DOMAIN" }}`)'
+      --providers.docker.defaultrule='Host(`{{ index .Labels "com.docker.compose.service" }}.{{ env "TLD" }}`)'
     environment:
-      - DOMAIN=${PRIVATE_DOMAIN:-local}
+      - TLD=${TLD:-home}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
@@ -58,6 +55,16 @@ services:
       - portainer_data:/data
     labels:
       - traefik.enable=true
-      - traefik.http.routers.portainer.rule=Host(`portainer.${PUBLIC_DOMAIN:-local}`)
       - traefik.http.routers.portainer.service=portainer
       - traefik.http.services.portainer.loadbalancer.server.port=9000
+
+  excalidraw:
+    image: excalidraw/excalidraw
+    restart: unless-stopped
+    profiles:
+      - all
+      - excalidraw
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.excalidraw.service=excalidraw
+      - traefik.http.services.excalidraw.loadbalancer.server.port=80
