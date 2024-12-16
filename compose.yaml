@@ -9,21 +9,6 @@ volumes:
 
 
 services:
-  adguard:
-    image: adguard/adguardhome
-    restart: unless-stopped
-    command: --web-addr 0.0.0.0:80
-    volumes:
-      - adguard_data:/opt/adguardhome/work
-      - adguard_conf:/opt/adguardhome/conf
-    ports:
-      - 53:53/tcp
-      - 53:53/udp
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.adguard.service=adguard
-      - traefik.http.services.adguard.loadbalancer.server.port=80
-
   traefik:
     image: traefik:v3.2
     restart: unless-stopped
@@ -46,6 +31,21 @@ services:
       - traefik.enable=true
       - traefik.http.routers.traefik.service=traefik
       - traefik.http.services.traefik.loadbalancer.server.port=8080
+
+  adguard:
+    image: adguard/adguardhome
+    restart: unless-stopped
+    command: --web-addr 0.0.0.0:80
+    volumes:
+      - adguard_data:/opt/adguardhome/work
+      - adguard_conf:/opt/adguardhome/conf
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.adguard.service=adguard
+      - traefik.http.services.adguard.loadbalancer.server.port=80
 
   portainer:
     image: portainer/portainer-ee:2.21.4
