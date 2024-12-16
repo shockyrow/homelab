@@ -58,6 +58,17 @@ services:
       - traefik.http.routers.portainer.service=portainer
       - traefik.http.services.portainer.loadbalancer.server.port=9000
 
+  rancher:
+    image: rancher/server:stable
+    restart: unless-stopped
+    profiles:
+      - all
+      - rancher
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.rancher.service=rancher
+      - traefik.http.services.rancher.loadbalancer.server.port=8080
+
   excalidraw:
     image: excalidraw/excalidraw
     restart: unless-stopped
