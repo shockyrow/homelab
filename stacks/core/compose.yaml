@@ -1,0 +1,43 @@
+services:
+  traefik:
+    image: traefik:v3.2
+    command: |-
+      --api.insecure=true
+      --entrypoints.http.address=:80
+      --entrypoints.http.asdefault=true
+      --entrypoints.https.address=:443
+      --providers.docker=true
+      --providers.docker.exposedbydefault=false
+      --providers.docker.defaultrule='Host(`{{ index .Labels "com.docker.compose.service" }}.{{ env "TLD" }}`)'
+    environment:
+      - TLD=${TLD:-home}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - 80:80
+      - 443:443
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.traefik.service=traefik
+      - traefik.http.services.traefik.loadbalancer.server.port=8080
+    restart: unless-stopped
+
+  adguard:
+    image: adguard/adguardhome
+    command: --web-addr 0.0.0.0:80
+    volumes:
+      - ./volumes/adguard-data:/opt/adguardhome/work
+      - ./volumes/adguard-conf:/opt/adguardhome/conf
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.adguard.service=adguard
+      - traefik.http.services.adguard.loadbalancer.server.port=80
+    restart: unless-stopped
+
+networks:
+  default:
+    name: ${NETWORK:-traefik}
+    external: true

@@ -1,0 +1,28 @@
+services:
+  portainer:
+    image: portainer/portainer-ee:2.21.5
+    profiles:
+      - portainer
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./volumes/portainer-data:/data
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.portainer.service=portainer
+      - traefik.http.services.portainer.loadbalancer.server.port=9000
+    restart: unless-stopped
+
+  rancher:
+    image: rancher/server:stable
+    profiles:
+      - rancher
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.rancher.service=rancher
+      - traefik.http.services.rancher.loadbalancer.server.port=8080
+    restart: unless-stopped
+
+networks:
+  default:
+    name: ${NETWORK:-traefik}
+    external: true

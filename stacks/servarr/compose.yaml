@@ -1,0 +1,178 @@
+x-common-config: &common-config
+  environment:
+    - PUID=${UID:-1000}
+    - PGID=${GID:-1000}
+    - TZ=${TIMEZONE:-Asia/Tomsk}
+  restart: unless-stopped
+
+x-common-config-with-vpn: &common-config-with-vpn
+  <<: *common-config
+  depends_on:
+    - wireguard
+  network_mode: service:wireguard
+
+x-common-arr-config: &common-arr-config
+  <<: *common-config-with-vpn
+  depends_on:
+    - qbittorrent
+  volumes:
+    - downloads:/downloads
+    - media:/mnt/media
+
+services:
+  wireguard:
+    image: linuxserver/wireguard:latest
+    <<: *common-config
+    volumes:
+      - ./volumes/wireguard-config:/config/wg_confs
+    ports:
+      - 6881:6881
+      - 6881:6881/udp
+      - 8280:8280
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv6.conf.all.disable_ipv6=1
+    privileged: true
+
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    <<: *common-config-with-vpn
+    user: ${UID:-1000}:${GID:-1000}
+    environment:
+      - JELLYFIN_CACHE_DIR=/var/cache/jellyfin
+      - JELLYFIN_CONFIG_DIR=/etc/jellyfin
+      - JELLYFIN_DATA_DIR=/var/lib/jellyfin
+      - JELLYFIN_LOG_DIR=/var/log/jellyfin
+    volumes:
+      - ./volumes/jellyfin-config:/etc/jellyfin
+      - ./volumes/jellyfin-cache:/var/cache/jellyfin
+      - ./volumes/jellyfin-data:/var/lib/jellyfin
+      - ./volumes/jellyfin-log:/var/log/jellyfin
+      - media:/mnt/media
+    group_add:
+      - "109"
+    devices:
+      - /dev/dri/renderD128:/dev/dri/renderD128
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.jellyfin.service=jellyfin
+      - traefik.http.services.jellyfin.loadbalancer.server.port=8096
+
+  qbittorrent:
+    image: linuxserver/qbittorrent:latest
+    <<: *common-config-with-vpn
+    environment:
+      - WEBUI_PORT=8080
+    volumes:
+      - ./volumes/qbittorrent-config:/config
+      - downloads:/downloads
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.qbittorrent.service=qbittorrent
+      - traefik.http.services.qbittorrent.loadbalancer.server.port=8080
+
+  flaresolverr:
+    image: flaresolverr/flaresolverr:latest
+    <<: *common-config-with-vpn
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - LOG_HTML=${LOG_HTML:-false}
+      - CAPTCHA_SOLVER=${CAPTCHA_SOLVER:-none}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.flaresolverr.service=flaresolverr
+      - traefik.http.services.flaresolverr.loadbalancer.server.port=8191
+
+  lidarr:
+    image: linuxserver/lidarr:latest
+    <<: *common-arr-config
+    volumes:
+      - ./volumes/lidarr-config:/config
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.lidarr.service=lidarr
+      - traefik.http.services.lidarr.loadbalancer.server.port=8686
+
+  readarr:
+    image: linuxserver/readarr:develop
+    <<: *common-arr-config
+    volumes:
+      - ./volumes/readarr-config:/config
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.readarr.service=readarr
+      - traefik.http.services.readarr.loadbalancer.server.port=8787
+
+  radarr:
+    image: linuxserver/radarr:latest
+    <<: *common-arr-config
+    volumes:
+      - ./volumes/radarr-config:/config
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.radarr.service=radarr
+      - traefik.http.services.radarr.loadbalancer.server.port=7878
+
+  sonarr:
+    image: linuxserver/sonarr:latest
+    <<: *common-arr-config
+    volumes:
+      - ./volumes/sonarr-config:/config
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.sonarr.service=sonarr
+      - traefik.http.services.sonarr.loadbalancer.server.port=8989
+
+  prowlarr:
+    image: linuxserver/prowlarr:latest
+    <<: *common-config-with-vpn
+    depends_on:
+      - flaresolverr
+      - lidarr
+      - readarr
+      - radarr
+      - sonarr
+    volumes:
+      - ./volumes/prowlarr-config:/config
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.prowlarr.service=prowlarr
+      - traefik.http.services.prowlarr.loadbalancer.server.port=9696
+
+  jellyseerr:
+    image: fallenbagel/jellyseerr:latest
+    <<: *common-config-with-vpn
+    user: ${UID:-1000}:${GID:-1000}
+    depends_on:
+      - jellyfin
+      - radarr
+      - sonarr
+    volumes:
+      - ./volumes/jellyseerr-config:/app/config
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.jellyseerr.service=jellyseerr
+      - traefik.http.services.jellyseerr.loadbalancer.server.port=5055
+
+networks:
+  default:
+    name: ${NETWORK:-traefik}
+    external: true
+
+volumes:
+  downloads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DOWNLOADS_DIR:-./volumes/downloads}
+
+  media:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MEDIA_DIR:-./volumes/media}
