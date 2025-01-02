@@ -15,9 +15,6 @@ x-common-arr-config: &common-arr-config
   <<: *common-config-with-vpn
   depends_on:
     - qbittorrent
-  volumes:
-    - downloads:/downloads
-    - media:/mnt/media
 
 services:
   wireguard:
@@ -28,7 +25,6 @@ services:
     ports:
       - 6881:6881
       - 6881:6881/udp
-      - 8280:8280
     cap_add:
       - NET_ADMIN
       - SYS_MODULE
@@ -58,6 +54,7 @@ services:
       - /dev/dri/renderD128:/dev/dri/renderD128
     labels:
       - traefik.enable=true
+      - traefik.http.routers.jellyfin.rule=Host(`${JELLYFIN_DOMAIN:-jellyfin.home}`)
       - traefik.http.routers.jellyfin.service=jellyfin
       - traefik.http.services.jellyfin.loadbalancer.server.port=8096
 
@@ -91,6 +88,8 @@ services:
     <<: *common-arr-config
     volumes:
       - ./volumes/lidarr-config:/config
+      - downloads:/downloads
+      - media:/mnt/media
     labels:
       - traefik.enable=true
       - traefik.http.routers.lidarr.service=lidarr
@@ -101,6 +100,8 @@ services:
     <<: *common-arr-config
     volumes:
       - ./volumes/readarr-config:/config
+      - downloads:/downloads
+      - media:/mnt/media
     labels:
       - traefik.enable=true
       - traefik.http.routers.readarr.service=readarr
@@ -111,6 +112,8 @@ services:
     <<: *common-arr-config
     volumes:
       - ./volumes/radarr-config:/config
+      - downloads:/downloads
+      - media:/mnt/media
     labels:
       - traefik.enable=true
       - traefik.http.routers.radarr.service=radarr
@@ -121,6 +124,8 @@ services:
     <<: *common-arr-config
     volumes:
       - ./volumes/sonarr-config:/config
+      - downloads:/downloads
+      - media:/mnt/media
     labels:
       - traefik.enable=true
       - traefik.http.routers.sonarr.service=sonarr
