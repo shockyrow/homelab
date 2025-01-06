@@ -8,9 +8,10 @@ services:
       --entrypoints.https.address=:443
       --providers.docker=true
       --providers.docker.exposedbydefault=false
-      --providers.docker.defaultrule='Host(`{{ index .Labels "com.docker.compose.service" }}.{{ env "TLD" }}`)'
+      --providers.docker.defaultrule='Host(`{{ index .Labels "com.docker.compose.service" }}.{{ env "LOCAL_TLD" }}`) || Host(`{{ index .Labels "com.docker.compose.service" }}.{{ env "DOMAIN_NAME" }}`)'
     environment:
-      - TLD=${TLD:-home}
+      - LOCAL_TLD=${LOCAL_TLD:-home}
+      - DOMAIN_NAME=${DOMAIN_NAME}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
@@ -18,16 +19,18 @@ services:
       - 443:443
     labels:
       - traefik.enable=true
+      - traefik.http.routers.traefik.rule=Host(`traefik.${LOCAL_TLD}`)
       - traefik.http.routers.traefik.service=traefik
       - traefik.http.services.traefik.loadbalancer.server.port=8080
     restart: unless-stopped
 
   adguard:
-    image: adguard/adguardhome
-    command: --web-addr 0.0.0.0:80
+    image: adguard/adguardhome:latest
+    command: |-
+      --work-dir /adguard-work
+      --web-addr 0.0.0.0:80
     volumes:
-      - ./volumes/adguard-data:/opt/adguardhome/work
-      - ./volumes/adguard-conf:/opt/adguardhome/conf
+      - ./volumes/adguard-work:/adguard-work
     ports:
       - 53:53/tcp
       - 53:53/udp
