@@ -59,6 +59,8 @@ services:
       - /dev/dri/renderD128:/dev/dri/renderD128
     labels:
       - traefik.enable=true
+      - traefik.http.routers.home.rule=Host(`${DOMAIN_NAME}`)
+      - traefik.http.routers.home.service=jelly
       - traefik.http.routers.jelly.service=jelly
       - traefik.http.services.jelly.loadbalancer.server.port=8096
 
@@ -83,8 +85,6 @@ services:
       - /dev/dri/renderD128:/dev/dri/renderD128
     labels:
       - traefik.enable=true
-      - traefik.http.routers.home.rule=Host(`${DOMAIN_NAME}`)
-      - traefik.http.routers.home.service=jellyfin
       - traefik.http.routers.jellyfin.service=jellyfin
       - traefik.http.services.jellyfin.loadbalancer.server.port=8096
 
