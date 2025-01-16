@@ -38,6 +38,18 @@ services:
       retries: 3
     privileged: true
 
+  firefox:
+    image: linuxserver/firefox:latest
+    <<: *common-config
+    volumes:
+      - ./volumes/firefox-config:/config
+    shm_size: "1gb"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.firefox.rule=Host(`firefox.${LOCAL_TLD:-local}`)
+      - traefik.http.routers.firefox.service=firefox
+      - traefik.http.services.firefox.loadbalancer.server.port=3000
+
   jelly:
     image: jellyfin/jellyfin:latest
     <<: *common-config
