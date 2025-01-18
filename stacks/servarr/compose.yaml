@@ -50,6 +50,25 @@ services:
       - traefik.http.routers.firefox.service=firefox
       - traefik.http.services.firefox.loadbalancer.server.port=3000
 
+  plex:
+    image: linuxserver/plex:latest
+    <<: *common-config
+    user: ${UID:-1000}:${GID:-1000}
+    environment:
+      - VERSION=docker
+      - PLEX_CLAIM=${PLEX_CLAIM}
+    volumes:
+      - ./volumes/plex-config:/config
+      - media:/mnt/media
+    group_add:
+      - "109"
+    devices:
+      - /dev/dri:/dev/dri
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.plex.service=plex
+      - traefik.http.services.plex.loadbalancer.server.port=32400
+
   jelly:
     image: jellyfin/jellyfin:latest
     <<: *common-config
@@ -68,7 +87,7 @@ services:
     group_add:
       - "109"
     devices:
-      - /dev/dri/renderD128:/dev/dri/renderD128
+      - /dev/dri:/dev/dri
     labels:
       - traefik.enable=true
       - traefik.http.routers.home.rule=Host(`${DOMAIN_NAME}`)
@@ -94,7 +113,7 @@ services:
     group_add:
       - "109"
     devices:
-      - /dev/dri/renderD128:/dev/dri/renderD128
+      - /dev/dri:/dev/dri
     labels:
       - traefik.enable=true
       - traefik.http.routers.jellyfin.service=jellyfin
