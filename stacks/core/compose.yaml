@@ -8,10 +8,9 @@ services:
       --entrypoints.https.address=:443
       --providers.docker=true
       --providers.docker.exposedbydefault=false
-      --providers.docker.defaultrule='Host(`{{ index .Labels "com.docker.compose.service" }}.{{ env "LOCAL_TLD" }}`) || Host(`{{ index .Labels "com.docker.compose.service" }}.{{ env "DOMAIN_NAME" }}`)'
+      --providers.docker.defaultrule='Host(`{{ index .Labels "com.docker.compose.service" }}.{{ env "LOCAL_TLD" }}`)'
     environment:
-      - LOCAL_TLD=${LOCAL_TLD:-home}
-      - DOMAIN_NAME=${DOMAIN_NAME}
+      - LOCAL_TLD=${LOCAL_TLD:-local}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
@@ -19,7 +18,7 @@ services:
       - 443:443
     labels:
       - traefik.enable=true
-      - traefik.http.routers.traefik.rule=Host(`traefik.${LOCAL_TLD}`)
+      - traefik.http.routers.traefik.rule=Host(`traefik.${LOCAL_TLD:-local}`)
       - traefik.http.routers.traefik.service=traefik
       - traefik.http.services.traefik.loadbalancer.server.port=8080
     restart: unless-stopped

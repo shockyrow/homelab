@@ -1,25 +1,9 @@
-x-common-config: &common-config
-  environment:
-    - PUID=${UID:-1000}
-    - PGID=${GID:-1000}
-    - TZ=${TIMEZONE:-Asia/Tomsk}
-  restart: unless-stopped
-
-x-common-config-with-vpn: &common-config-with-vpn
-  <<: *common-config
-  depends_on:
-    - wireguard
-  network_mode: service:wireguard
-
-x-common-arr-config: &common-arr-config
-  <<: *common-config-with-vpn
-  depends_on:
-    - qbittorrent
-
 services:
   wireguard:
     image: linuxserver/wireguard:latest
-    <<: *common-config
+    restart: unless-stopped
+    env_file:
+      - ./linuxserver.env
     volumes:
       - ./volumes/wireguard-config:/config/wg_confs
     ports:
@@ -33,27 +17,29 @@ services:
       - net.ipv6.conf.all.disable_ipv6=1
     healthcheck:
       test: ["CMD", "ping", "-c", "3", "google.com"]
-      interval: 2s
-      timeout: 60s
+      interval: 30s
+      timeout: 10s
       retries: 3
     privileged: true
 
   firefox:
     image: linuxserver/firefox:latest
-    <<: *common-config
+    restart: unless-stopped
+    env_file:
+      - ./linuxserver.env
     volumes:
       - ./volumes/firefox-config:/config
     shm_size: "1gb"
     labels:
       - traefik.enable=true
-      - traefik.http.routers.firefox.rule=Host(`firefox.${LOCAL_TLD:-local}`)
       - traefik.http.routers.firefox.service=firefox
       - traefik.http.services.firefox.loadbalancer.server.port=3000
 
   plex:
     image: linuxserver/plex:latest
-    <<: *common-config
-    user: ${UID:-1000}:${GID:-1000}
+    restart: unless-stopped
+    env_file:
+      - ./linuxserver.env
     environment:
       - VERSION=docker
       - PLEX_CLAIM=${PLEX_CLAIM}
@@ -69,20 +55,18 @@ services:
       - traefik.http.routers.plex.service=plex
       - traefik.http.services.plex.loadbalancer.server.port=32400
 
-  jelly:
-    image: jellyfin/jellyfin:latest
-    <<: *common-config
-    user: ${UID:-1000}:${GID:-1000}
+  jellyfin:
+    image: linuxserver/jellyfin:latest
+    restart: unless-stopped
+    env_file:
+      - ./linuxserver.env
     environment:
-      - JELLYFIN_CACHE_DIR=/var/cache/jellyfin
-      - JELLYFIN_CONFIG_DIR=/etc/jellyfin
-      - JELLYFIN_DATA_DIR=/var/lib/jellyfin
-      - JELLYFIN_LOG_DIR=/var/log/jellyfin
+      - JELLYFIN_PublishedServerUrl=Host(`${DOMAIN_NAME}`)
+    depends_on:
+      - wireguard
+    network_mode: service:wireguard
     volumes:
-      - ./volumes/jellyfin-config:/etc/jellyfin
-      - ./volumes/jellyfin-cache:/var/cache/jellyfin
-      - ./volumes/jellyfin-data:/var/lib/jellyfin
-      - ./volumes/jellyfin-log:/var/log/jellyfin
+      - ./volumes/jellyfin-config:/config
       - media:/mnt/media
     group_add:
       - "109"
@@ -91,37 +75,23 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.home.rule=Host(`${DOMAIN_NAME}`)
-      - traefik.http.routers.home.service=jelly
-      - traefik.http.routers.jelly.service=jelly
-      - traefik.http.services.jelly.loadbalancer.server.port=8096
-
-  jellyfin:
-    image: jellyfin/jellyfin:latest
-    <<: *common-config-with-vpn
-    user: ${UID:-1000}:${GID:-1000}
-    environment:
-      - JELLYFIN_CACHE_DIR=/var/cache/jellyfin
-      - JELLYFIN_CONFIG_DIR=/etc/jellyfin
-      - JELLYFIN_DATA_DIR=/var/lib/jellyfin
-      - JELLYFIN_LOG_DIR=/var/log/jellyfin
-    volumes:
-      - ./volumes/jellyfin-config:/etc/jellyfin
-      - ./volumes/jellyfin-cache:/var/cache/jellyfin
-      - ./volumes/jellyfin-data:/var/lib/jellyfin
-      - ./volumes/jellyfin-log:/var/log/jellyfin
-      - media:/mnt/media
-    group_add:
-      - "109"
-    devices:
-      - /dev/dri:/dev/dri
-    labels:
-      - traefik.enable=true
+      - traefik.http.routers.home.service=jellyfin
       - traefik.http.routers.jellyfin.service=jellyfin
       - traefik.http.services.jellyfin.loadbalancer.server.port=8096
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8096"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   qbittorrent:
     image: linuxserver/qbittorrent:latest
-    <<: *common-config-with-vpn
+    restart: unless-stopped
+    env_file:
+      - ./linuxserver.env
+    depends_on:
+      - wireguard
+    network_mode: service:wireguard
     environment:
       - WEBUI_PORT=8080
     volumes:
@@ -134,7 +104,12 @@ services:
 
   flaresolverr:
     image: flaresolverr/flaresolverr:latest
-    <<: *common-config-with-vpn
+    restart: unless-stopped
+    env_file:
+      - ./linuxserver.env
+    depends_on:
+      - wireguard
+    network_mode: service:wireguard
     environment:
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - LOG_HTML=${LOG_HTML:-false}
@@ -146,7 +121,13 @@ services:
 
   lidarr:
     image: linuxserver/lidarr:latest
-    <<: *common-arr-config
+    restart: unless-stopped
+    env_file:
+      - ./linuxserver.env
+    depends_on:
+      - wireguard
+      - qbittorrent
+    network_mode: service:wireguard
     volumes:
       - ./volumes/lidarr-config:/config
       - downloads:/downloads
@@ -158,7 +139,13 @@ services:
 
   readarr:
     image: linuxserver/readarr:develop
-    <<: *common-arr-config
+    restart: unless-stopped
+    env_file:
+      - ./linuxserver.env
+    depends_on:
+      - wireguard
+      - qbittorrent
+    network_mode: service:wireguard
     volumes:
       - ./volumes/readarr-config:/config
       - downloads:/downloads
@@ -170,7 +157,13 @@ services:
 
   radarr:
     image: linuxserver/radarr:latest
-    <<: *common-arr-config
+    restart: unless-stopped
+    env_file:
+      - ./linuxserver.env
+    depends_on:
+      - wireguard
+      - qbittorrent
+    network_mode: service:wireguard
     volumes:
       - ./volumes/radarr-config:/config
       - downloads:/downloads
@@ -182,7 +175,13 @@ services:
 
   sonarr:
     image: linuxserver/sonarr:latest
-    <<: *common-arr-config
+    restart: unless-stopped
+    env_file:
+      - ./linuxserver.env
+    depends_on:
+      - wireguard
+      - qbittorrent
+    network_mode: service:wireguard
     volumes:
       - ./volumes/sonarr-config:/config
       - downloads:/downloads
@@ -194,13 +193,17 @@ services:
 
   prowlarr:
     image: linuxserver/prowlarr:latest
-    <<: *common-config-with-vpn
+    restart: unless-stopped
+    env_file:
+      - ./linuxserver.env
     depends_on:
+      - wireguard
       - flaresolverr
       - lidarr
       - readarr
       - radarr
       - sonarr
+    network_mode: service:wireguard
     volumes:
       - ./volumes/prowlarr-config:/config
     labels:
@@ -210,12 +213,15 @@ services:
 
   jellyseerr:
     image: fallenbagel/jellyseerr:latest
-    <<: *common-config-with-vpn
-    user: ${UID:-1000}:${GID:-1000}
+    restart: unless-stopped
+    env_file:
+      - ./linuxserver.env
     depends_on:
+      - wireguard
       - jellyfin
       - radarr
       - sonarr
+    network_mode: service:wireguard
     volumes:
       - ./volumes/jellyseerr-config:/app/config
     labels:
