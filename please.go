@@ -5,18 +5,29 @@ import (
 	"os"
 )
 
-type Action func(args []string) int
+type ActionResult uint8
 
-const ACTION_HELP string = "help"
+const RESULT_SUCCESS ActionResult = 0
+const RESULT_INVALID_USAGE ActionResult = 255
+
+type ActionFunction func(args []string) ActionResult
+type Action struct {
+	description string
+	usage       string
+	action      ActionFunction
+}
 
 var actions map[string]Action = map[string]Action{
-	ACTION_HELP: func(args []string) int {
-		fmt.Println("Coming soon...")
-		return 0
-	},
-	"start": func(args []string) int {
-		fmt.Println("Not implemented!")
-		return 1
+	"start": {
+		description: "Starts given stack",
+		usage:       "start <stack_name> [options]",
+		action: func(args []string) ActionResult {
+			if len(args) == 0 {
+				return RESULT_INVALID_USAGE
+			}
+
+			return RESULT_SUCCESS
+		},
 	},
 }
 
@@ -24,18 +35,34 @@ func main() {
 	args := os.Args
 
 	if len(args) < 2 {
-		run(ACTION_HELP, []string{})
+		showHelp()
 	}
 
 	run(args[1], args[2:])
 }
 
-func run(actionName string, args []string) {
-	action, exists := actions[actionName]
+func showHelp() {
+	fmt.Printf("%-20s\t%-40s\t%-20s\n", "Action", "Description", "Usage")
 
-	if !exists {
-		action = actions[ACTION_HELP]
+	for name, action := range actions {
+		fmt.Printf("%-20s\t%-40s\t%-20s\n", name, action.description, action.usage)
 	}
 
-	os.Exit(action(args))
+	os.Exit(0)
+}
+
+func run(actionName string, args []string) {
+	actionData, exists := actions[actionName]
+
+	if !exists {
+		showHelp()
+	}
+
+	code := actionData.action(args)
+
+	if code == RESULT_INVALID_USAGE {
+		fmt.Println("Usage: ", actionData.usage)
+	}
+
+	os.Exit(int(code))
 }
