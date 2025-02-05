@@ -22,6 +22,8 @@ const RESULT_SUCCESS ActionResult = 0
 const RESULT_FAILURE ActionResult = 1
 const RESULT_INVALID_USAGE ActionResult = 255
 
+const COLS_GAP int = 5
+
 var actions map[string]Action = map[string]Action{
 	"start": {
 		description: "Starts given stack",
@@ -53,9 +55,9 @@ var actions map[string]Action = map[string]Action{
 				}
 			}
 
-			format := fmt.Sprintf("%%-%ds %%s\n", longestNameLen+1)
+			format := fmt.Sprintf("%%-%ds %%s\n", longestNameLen+COLS_GAP)
 
-			for _, serviceName := range serviceNames {
+			for i, serviceName := range serviceNames {
 				commandResult := runCommand("./stacks/"+args[0], fmt.Sprintf("docker compose restart %s", serviceName), nil, nil)
 				commandResultString := "Done"
 
@@ -64,7 +66,11 @@ var actions map[string]Action = map[string]Action{
 					commandResultString = "Failed"
 				}
 
-				fmt.Printf(format, serviceName+":", commandResultString)
+				if i == 0 {
+					fmt.Printf(format, "Service", "Status")
+				}
+
+				fmt.Printf(format, serviceName, commandResultString)
 			}
 
 			return actionResult
@@ -89,7 +95,7 @@ func showHelp() {
 		rows = append(rows, []string{name, action.description, action.usage})
 	}
 
-	prettyPrintTable(rows, 5, nil)
+	prettyPrintTable(rows, nil)
 
 	os.Exit(0)
 }
@@ -103,11 +109,9 @@ func run(actionName string, args []string) {
 
 	code := actionData.action(args)
 
-	if code == RESULT_SUCCESS {
-		fmt.Println("Done")
-	} else if code == RESULT_INVALID_USAGE {
+	if code == RESULT_INVALID_USAGE {
 		fmt.Println("Invalid usage! Usage: ", actionData.usage)
-	} else {
+	} else if code != RESULT_SUCCESS {
 		fmt.Println("Something went wrong! Code: ", code)
 	}
 
@@ -151,9 +155,7 @@ func runCommand(workingDir, command string, outputWriter, errorWriter io.Writer)
 	return RESULT_SUCCESS
 }
 
-func prettyPrintTable(rows [][]string, gap int, outputWriter io.Writer) {
-	gap = max(gap, 1)
-
+func prettyPrintTable(rows [][]string, outputWriter io.Writer) {
 	if outputWriter == nil {
 		outputWriter = os.Stdout
 	}
@@ -168,7 +170,13 @@ func prettyPrintTable(rows [][]string, gap int, outputWriter io.Writer) {
 
 	for _, row := range rows {
 		for i, cell := range row {
-			fmt.Fprintf(outputWriter, fmt.Sprintf("%%-%ds", colSizes[i]+gap), cell)
+			format := fmt.Sprintf("%%-%ds", colSizes[i]+COLS_GAP)
+
+			if i == len(row)-1 {
+				format = "%s"
+			}
+
+			fmt.Fprintf(outputWriter, format, cell)
 		}
 
 		fmt.Println()
